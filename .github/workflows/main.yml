@@ -43,7 +43,7 @@ jobs:
           make -j$(nproc)
 
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: n60-pro-firmware
           path: bin/targets/mediatek/mt7986/openwrt-immortalwrt-6.6-netcore_n60_pro-squashfs-sysupgrade.bin
