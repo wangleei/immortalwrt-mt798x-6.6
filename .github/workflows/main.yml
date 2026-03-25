@@ -1,0 +1,49 @@
+name: Build Netcore N60-Pro Firmware
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential git libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev libelf-dev perl
+
+      - name: Apply N60-Pro Target and Optimizations
+        run: |
+          cd $GITHUB_WORKSPACE
+
+          # 生成 sysctl 优化文件，避免 <<EOF 语法问题
+          mkdir -p files/etc
+          echo 'net.core.rmem_max = 16777216' > files/etc/sysctl.conf
+          echo 'net.core.wmem_max = 16777216' >> files/etc/sysctl.conf
+          echo 'net.ipv4.tcp_rmem = 4096 87380 16777216' >> files/etc/sysctl.conf
+          echo 'net.ipv4.tcp_wmem = 4096 65536 16777216' >> files/etc/sysctl.conf
+          echo 'net.ipv4.tcp_congestion_control = bbr' >> files/etc/sysctl.conf
+          echo 'net.ipv4.tcp_mtu_probing = 1' >> files/etc/sysctl.conf
+
+          # 临时 .config 内核优化
+          echo "CONFIG_HZ_1000=y" >> .config
+          echo "CONFIG_PREEMPT=y" >> .config
+          echo "CONFIG_CPU_FREQ_GOV_PERFORMANCE=y" >> .config
+          echo "CONFIG_TCP_CONG_BBR=y" >> .config
+          echo "CONFIG_TCP_FASTOPEN=y" >> .config
+          echo "TARGET_DEVICE=netcore_n60_pro" >> .config
+
+      - name: Compile firmware
+        run: |
+          cd $GITHUB_WORKSPACE
+          make -j$(nproc)
+
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: n60-pro-firmware
+          path: bin/targets/mediatek/mt7986/openwrt-immortalwrt-6.6-netcore_n60_pro-squashfs-sysupgrade.bin
