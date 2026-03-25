@@ -8,19 +8,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. 拉取源码
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      # 2. 安装依赖
       - name: Setup dependencies
         run: |
           sudo apt update
           sudo apt install -y build-essential git libncurses5-dev zlib1g-dev gawk flex quilt libssl-dev libelf-dev perl
 
-      - name: Apply N60-Pro Target and Optimizations
+      # 3. 创建 sysctl 优化文件
+      - name: Setup N60-Pro sysctl optimizations
         run: |
           cd $GITHUB_WORKSPACE
-
-          # 生成 sysctl 优化文件，避免 <<EOF 语法问题
           mkdir -p files/etc
           echo 'net.core.rmem_max = 16777216' > files/etc/sysctl.conf
           echo 'net.core.wmem_max = 16777216' >> files/etc/sysctl.conf
@@ -29,20 +30,15 @@ jobs:
           echo 'net.ipv4.tcp_congestion_control = bbr' >> files/etc/sysctl.conf
           echo 'net.ipv4.tcp_mtu_probing = 1' >> files/etc/sysctl.conf
 
-          # 临时 .config 内核优化
-          echo "CONFIG_HZ_1000=y" >> .config
-          echo "CONFIG_PREEMPT=y" >> .config
-          echo "CONFIG_CPU_FREQ_GOV_PERFORMANCE=y" >> .config
-          echo "CONFIG_TCP_CONG_BBR=y" >> .config
-          echo "CONFIG_TCP_FASTOPEN=y" >> .config
-          echo "TARGET_DEVICE=netcore_n60_pro" >> .config
-
-      - name: Compile firmware
+      # 4. 编译固件（非交互式）
+      - name: Compile N60-Pro firmware
         run: |
           cd $GITHUB_WORKSPACE
+          make defconfig
           make -j$(nproc)
 
-      - name: Upload firmware artifact
+      # 5. 上传固件产物
+      - name: Upload N60-Pro firmware artifact
         uses: actions/upload-artifact@v4
         with:
           name: n60-pro-firmware
